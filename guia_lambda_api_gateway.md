@@ -8,8 +8,6 @@ Este guia documenta o passo a passo para provisionar, configurar e integrar apli
 
 ### Usando a UI
 
-### Usando a UI: 
-
 Nesta etapa, vamos criar a função Lambda `guardrail-stop-by-tag` diretamente pelo console. O objetivo é criar um "GuardRail" (protetor de custos) que será acionado a cada 5 minutos para buscar e desligar instâncias EC2 que possuam a tag `AutoStop=true`.
 
 #### Pré-requisito: Preparar a Instância EC2
