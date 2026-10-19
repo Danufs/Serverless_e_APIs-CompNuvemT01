@@ -230,8 +230,6 @@ aws cloudformation wait stack-delete-complete --stack-name GuardRailLab
 
 ---
 
-### Parte 2
-
 ## Parte 2: Criando APIs com API Gateway
 
 O API Gateway é um serviço totalmente gerenciado que permite criar, publicar, manter, monitorar e proteger APIs em qualquer escala.
