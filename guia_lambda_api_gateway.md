@@ -230,13 +230,15 @@ aws cloudformation wait stack-delete-complete --stack-name GuardRailLab
 
 ---
 
+### Parte 2
+
 ## Parte 2: Criando APIs com API Gateway
 
 O API Gateway é um serviço totalmente gerenciado que permite criar, publicar, manter, monitorar e proteger APIs em qualquer escala.
 
 ### Opção A: Usando a UI (HTTP API)
 
-Integração de uma **HTTP API** com uma função **AWS Lambda**.
+Integração de uma **HTTP API** com uma função **AWS Lambda**, incluindo configurações de segurança e monitoramento.
 
 #### Passo 1: Criar a Função Lambda (O Backend)
 1. No console da AWS, acesse o **Lambda** e clique em **Create function**.
@@ -268,21 +270,53 @@ def lambda_handler(event, context):
 10. Em **Define stages**, digite `prod` no **Stage name** e mantenha o **Auto-deploy** marcado.
 11. Clique em **Next** e depois em **Create**.
 
-#### Passo 3: Testar a API
+#### Passo 3: Configurar Autenticação (API Key)
+Para evitar que qualquer pessoa acesse sua API, vamos exigir uma chave de acesso.
+1. Na sua API (`minha-http-api`), clique em **API Keys** no menu lateral esquerdo e depois em **Create API key**.
+2. Dê o nome de `MinhaChaveDeAcesso` e clique em **Create**.
+3. Agora, vá em **Usage Plans** > **Create**.
+4. Dê o nome de `PlanoBasico`. Na seção **API Stages**, adicione a sua API (`minha-http-api`) e o estágio `prod`.
+5. Na seção **Associated API Keys**, adicione a `MinhaChaveDeAcesso` e clique em **Create**.
+
+#### Passo 4: Configurar Throttling (Controle de Tráfego)
+Ainda dentro do `PlanoBasico` que você acabou de criar:
+1. Clique no plano `PlanoBasico` e vá até a aba **Throttling**.
+2. Clique em **Configure** e defina:
+   - **Rate Limit:** `5` (limite de 5 requisições por segundo).
+   - **Burst Limit:** `10` (picos temporários de até 10 requisições).
+3. **O que isso significa?** Se você fizer mais de 5 requisições no mesmo segundo, a API retornará o erro `429 Too Many Requests`, protegendo seu Lambda.
+
+#### Passo 5: Habilitar Observabilidade (Logs e Métricas)
+1. Na sua API (`minha-http-api`), clique em **Monitor** no menu lateral esquerdo.
+2. Clique em **Logging** e depois em **Manage logging**.
+3. Selecione a sua API e o estágio `prod`. Ative a opção **Detailed metrics**.
+4. Para habilitar os **Logs de Execução**:
+   - Vá em **Stages** > selecione o estágio `prod`.
+   - Na aba **Logs and tracing**, habilite o **CloudWatch Logs** (formato JSON).
+
+#### Passo 6: Testar a API Protegida
 1. Copie a **Invoke URL** gerada (ex: `https://abc123.execute-api.us-east-1.amazonaws.com/prod`).
-2. Abra no navegador ou use o CloudShell: `curl https://SUA-URL`.
-3. Você deverá ver a mensagem `"Olá do API Gateway + Lambda!"`.
+2. **Teste sem a chave:** Abra no navegador. Você receberá um erro `403 Forbidden`.
+3. **Teste com a chave:** No CloudShell, execute o comando (substitua a URL e a chave):
+```bash
+curl -H "x-api-key: SUA_CHAVE_AQUI" https://SUA-URL-DA-API
+```
+4. Você deverá ver a mensagem `"Olá do API Gateway + Lambda!"`.
+5. **Verifique os logs:** Vá no console do **CloudWatch** > **Log groups** e abra o log group `aws/apigateway/minha-http-api` para ver os detalhes da requisição bem-sucedida.
 
 #### 🧹 Limpeza (Evitar custos no Academy)
-1. **API Gateway:** No console do API Gateway, selecione a API `minha-http-api`, clique em **Actions > Delete**.
-2. **Lambda:** No console do Lambda, selecione a função `minha-funcao-api` e exclua-a (**Actions > Delete**).
-3. **IAM:** A role criada automaticamente pelo Lambda pode ser excluída (busque pelo nome da função no IAM > Roles).
+Para apagar tudo o que foi criado:
+1. **API Gateway:** Vá em **Usage Plans** e exclua o `PlanoBasico`. Vá em **API Keys** e exclua a `MinhaChaveDeAcesso`.
+2. **API Gateway:** Selecione a API `minha-http-api`, clique em **Actions > Delete**.
+3. **Lambda:** No console do Lambda, exclua a função `minha-funcao-api`.
+4. **IAM:** A role criada automaticamente pelo Lambda pode ser excluída (busque pelo nome da função no IAM > Roles).
+5. **CloudWatch:** (Opcional) Exclua o Log Group `aws/apigateway/minha-http-api` para limpar os logs gerados.
 
 ---
 
-### Opção B: Usando CloudFormation (REST API)
+### Opção B: Usando CloudFormation (REST API com Segurança)
 
-Esta é a forma "completa" para produção. O template abaixo cria a Role, a Função Lambda, a REST API, o método GET, a integração, o deploy para o estágio `prod` e a permissão do API Gateway.
+Esta é a forma "completa" para produção. O template abaixo cria a Role, a Função Lambda, a REST API, o método GET, o deploy, **a API Key, o Plano de Uso com Throttling** e as permissões necessárias.
 
 1. No CloudShell, crie o arquivo `api-gateway.yaml`:
 ```bash
@@ -294,7 +328,7 @@ EOF
 **Template YAML:**
 ```yaml
 AWSTemplateFormatVersion: '2010-09-09'
-Description: 'Lab: API REST integrada ao Lambda'
+Description: 'Lab: API REST integrada ao Lambda com API Key e Throttling'
 
 Resources:
   # 1. Role de execução para o Lambda
@@ -323,7 +357,7 @@ Resources:
           def handler(event, context):
               return {
                   "statusCode": 200,
-                  "body": "Olá do API Gateway + Lambda!"
+                  "body": "Olá do API Gateway + Lambda (Protegido)!"
               }
 
   # 3. A API no API Gateway
@@ -340,7 +374,7 @@ Resources:
       ParentId: !GetAtt MinhaApiRest.RootResourceId
       PathPart: "hello"
 
-  # 5. O Método (GET) com Integração Proxy
+  # 5. O Método (GET) com Integração Proxy e exigindo API Key
   MetodoGetHello:
     Type: AWS::ApiGateway::Method
     Properties:
@@ -348,6 +382,7 @@ Resources:
       ResourceId: !Ref RecursoHello
       HttpMethod: "GET"
       AuthorizationType: "NONE"
+      ApiKeyRequired: true # <--- Exige a API Key
       Integration:
         Type: "AWS_PROXY"
         IntegrationHttpMethod: "POST"
@@ -364,13 +399,45 @@ Resources:
       Principal: "apigateway.amazonaws.com"
       SourceArn: !Sub "arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${MinhaApiRest}/*"
 
-  # 7. Deploy da API (Obrigatório para gerar a URL pública)
+  # 7. Deploy da API
   ApiDeployment:
     Type: AWS::ApiGateway::Deployment
     DependsOn: MetodoGetHello
     Properties:
       RestApiId: !Ref MinhaApiRest
       StageName: "prod"
+
+  # 8. Criação da API Key
+  MinhaApiKey:
+    Type: AWS::ApiGateway::ApiKey
+    DependsOn: ApiDeployment
+    Properties:
+      Name: "MinhaChaveDeAcessoCFN"
+      Enabled: true
+      StageKeys:
+        - RestApiId: !Ref MinhaApiRest
+          StageName: "prod"
+
+  # 9. Criação do Usage Plan com Throttling
+  MeuUsagePlan:
+    Type: AWS::ApiGateway::UsagePlan
+    DependsOn: ApiDeployment
+    Properties:
+      UsagePlanName: "PlanoBasicoCFN"
+      ApiStages:
+        - ApiId: !Ref MinhaApiRest
+          Stage: "prod"
+      Throttle:
+        BurstLimit: 10
+        RateLimit: 5
+
+  # 10. Associação da API Key ao Usage Plan
+  MinhaApiKeyUsagePlan:
+    Type: AWS::ApiGateway::UsagePlanKey
+    Properties:
+      KeyId: !Ref MinhaApiKey
+      KeyType: API_KEY
+      UsagePlanId: !Ref MeuUsagePlan
 EOF
 ```
 
@@ -385,14 +452,24 @@ aws cloudformation create-stack \
 ```bash
 aws cloudformation wait stack-create-complete --stack-name ApiGatewayLab
 ```
-4. Obtenha a URL da API no console do API Gateway (Stages > prod) ou via CLI.
+4. Obtenha a URL e o ID da API Key para testar:
+```bash
+# Ver a URL da API
+aws apigateway get-stages --rest-api-id $(aws apigateway get-rest-apis --query "items[?name=='MinhaPrimeiraAPI'].id" --output text) --query "item[0].invokeUrl"
+
+# Ver o ID da API Key (para pegar o valor real, precisa usar get-api-key)
+aws apigateway get-api-keys --query "items[?name=='MinhaChaveDeAcessoCFN'].id" --output text
+```
+*(Dica: Para pegar o valor real da chave via CLI, use `aws apigateway get-api-key --api-key ID_DA_CHAVE --include-value`)*
+
+5. **Teste via CloudShell** (lembre-se de substituir a URL e o valor da chave):
+```bash
+curl -H "x-api-key: SUA_CHAVE_AQUI" https://SUA-URL-DA-API/hello
+```
 
 #### 🧹 Limpeza (Evitar custos no Academy)
-Para apagar a API, a Lambda e a Role do IAM de uma só vez, basta deletar a stack:
+Para apagar TUDO (API, Lambda, Role, API Key, Usage Plan) de uma só vez, basta deletar a stack:
 ```bash
 aws cloudformation delete-stack --stack-name ApiGatewayLab
-```
-Para aguardar a exclusão terminar:
-```bash
 aws cloudformation wait stack-delete-complete --stack-name ApiGatewayLab
 ```
