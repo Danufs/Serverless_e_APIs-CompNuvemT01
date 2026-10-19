@@ -6,8 +6,22 @@ Este guia documenta o passo a passo para provisionar, configurar e integrar apli
 
 ## Criando uma função Lambda ativa por agendamento
 
+### Usando a UI
 
 
+### Usando CloudFormation
+
+1. Abra o laboratorio AWS;
+2. Abra o CloudShell ('>_');
+3. Crie o arquivo template:
+  - Cole o seguinte no termina:
+```bash
+cat > guardrail-cost.yaml << 'EOF'
+# Cole aqui o conteúdo completo do YAML
+EOF
+```
+
+**Temaplet YAML:**
 ```
 AWSTemplateFormatVersion: '2010-09-09'
 Description: 'Lab: GuardRail de Custos - Para instancias EC2 com a tag AutoStop=true'
@@ -18,7 +32,7 @@ Resources:
     Type: AWS::EC2::Instance
     Properties:
       InstanceType: t2.micro
-      ImageId: ami-0c55b159cbfafe1f0 # Amazon Linux 2 (ajuste para a sua regiao se necessario)
+      ImageId: ami-0c55b159cbfafe1f0 # Amazon Linux 2
       Tags:
         - Key: Name
           Value: Instancia-GuardRail
@@ -109,6 +123,23 @@ Resources:
       Targets:
         - Arn: !GetAtt GuardRailFunction.Arn
           Id: 'GuardRailTarget'
+```
+4. Valide o arquivo: `aws cloudformation validate-template --template-body file://guardrail-cost.yaml`;
+5. Criando o sctak do Formation:
+```bash
+aws cloudformation create-stack \
+  --stack-name GuardRailLab \
+  --template-body file://guardrail-cost.yaml \
+  --capabilities CAPABILITY_NAMED_IAM
+```
+
+Para acompanhar a criação:
+```bash
+aws cloudformation wait stack-create-complete --stack-name GuardRailLab
+```
+
+``` bash
+aws cloudformation describe-stacks --stack-name GuardRailLab --query "Stacks[0].StackStatus"
 ```
 
 ## Usando função lambda por reação a evento junto com API Gateway
