@@ -4,7 +4,7 @@ Este guia documenta o passo a passo para provisionar, configurar e integrar apli
 
 > Aviso: Este laboratório foi desenhado para o ambiente acadêmico (AWS Academy / Learner Lab). As configurações de acesso público e a ausência de autenticação (como chaves de API ou autorizadores) demonstradas aqui não são recomendadas para ambientes corporativos de produção, onde a segurança e o controle de acesso rigorosos são essenciais.
 
-## Criando uma função Lambda ativa pro agendamento
+## Criando uma função Lambda ativa por agendamento
 
 
 
@@ -111,3 +111,4 @@ Resources:
           Id: 'GuardRailTarget'
 ```
 
+## Usando função lambda por reação a evento junto com API Gateway
