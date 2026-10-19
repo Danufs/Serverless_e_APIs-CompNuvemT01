@@ -6,8 +6,67 @@ Este guia documenta o passo a passo para provisionar, configurar e integrar apli
 
 ## Criando uma função Lambda por evento
 
+### Usando a UI
+
 ### Usando a UI: 
 
+Nesta etapa, vamos criar a função Lambda `guardrail-stop-by-tag` diretamente pelo console. O objetivo é criar um "GuardRail" (protetor de custos) que será acionado a cada 5 minutos para buscar e desligar instâncias EC2 que possuam a tag `AutoStop=true`.
+
+#### Pré-requisito: Preparar a Instância EC2
+1. Vá ao console do **Amazon EC2** e inicie uma instância (pode ser a `t2.micro` padrão).
+2. Após a criação, selecione a instância, vá em **Tags** (ou **Ações > Gerenciamento de instâncias > Gerenciar tags**) e adicione:
+   - **Chave:** `AutoStop`
+   - **Valor:** `true`
+
+#### Passo 1: Criar a Role do IAM (Permissões)
+A função Lambda precisará de permissão para listar e parar instâncias.
+1. No console da AWS, pesquise por **IAM** e abra o serviço.
+2. No menu lateral, clique em **Roles** (Funções) e depois em **Create role** (Criar função).
+3. Selecione **AWS service** (Serviço da AWS) e escolha **Lambda** na lista. Clique em **Next**.
+4. Na busca por políticas, adicione a política gerenciada **AmazonEC2FullAccess** (Nota: Em produção, use o princípio do privilégio mínimo, mas para este laboratório, esta política já cobre o necessário). Clique em **Next**.
+5. Dê o nome de `GuardRailLambdaRole` e clique em **Create role**.
+
+#### Passo 2: Criar a Função Lambda
+1. No console da AWS, pesquise por **Lambda** e abra o serviço.
+2. Clique em **Create function** (Criar função).
+3. Selecione **Author from scratch** (Criar do zero).
+4. Preencha:
+   - **Function name:** `guardrail-stop-by-tag`
+   - **Runtime:** `Python 3.11`
+   - Em **Permissions** (Permissões), expanda **Change default execution role** e escolha **Use an existing role** (Usar uma função existente).
+   - Selecione a role `GuardRailLambdaRole` que você criou no Passo 1.
+5. Clique em **Create function**.
+
+#### Passo 3: Inserir o Código
+1. Na tela da função, role até o bloco **Code source**.
+2. Apague o código padrão e cole o código abaixo:
+
+```python
+import boto3
+
+def lambda_handler(event, context):
+    ec2 = boto3.client('ec2')
+    
+    # Filtra instâncias em execução que tenham a tag AutoStop=true
+    response = ec2.describe_instances(
+        Filters=[
+            {'Name': 'instance-state-name', 'Values': ['running']},
+            {'Name': 'tag:AutoStop', 'Values': ['true']}
+        ]
+    )
+    
+    instance_ids = []
+    for reservation in response['Reservations']:
+        for instance in reservation['Instances']:
+            instance_ids.append(instance['InstanceId'])
+    
+    if instance_ids:
+        ec2.stop_instances(InstanceIds=instance_ids)
+        print(f'Instancias paradas com sucesso: {instance_ids}')
+        return f'Paradas: {instance_ids}'
+    else:
+        print('Nenhuma instancia com a tag AutoStop=true foi encontrada.')
+        return 'Nada a fazer.'
 
 ### Usando CloudFormation
 
