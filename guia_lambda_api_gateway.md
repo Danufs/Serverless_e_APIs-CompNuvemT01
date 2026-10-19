@@ -4,7 +4,7 @@ Este guia documenta o passo a passo para provisionar, configurar e integrar apli
 
 > Aviso: Este laboratório foi desenhado para o ambiente acadêmico (AWS Academy / Learner Lab). As configurações de acesso público e a ausência de autenticação (como chaves de API ou autorizadores) demonstradas aqui não são recomendadas para ambientes corporativos de produção, onde a segurança e o controle de acesso rigorosos são essenciais.
 
-## Criando uma função Lambda ativa por agendamento
+## Criando uma função Lambda por evento
 
 ### Usando a UI
 
@@ -142,4 +142,7 @@ aws cloudformation wait stack-create-complete --stack-name GuardRailLab
 aws cloudformation describe-stacks --stack-name GuardRailLab --query "Stacks[0].StackStatus"
 ```
 
-## Usando função lambda por reação a evento junto com API Gateway
+## Criando uma função lambda web
+
+O API Gateway é um serviço totalmente gerenciado que permite criar, publicar, manter, monitorar e proteger APIs em qualquer escala. Ele suporta três tipos principais de API.
+
