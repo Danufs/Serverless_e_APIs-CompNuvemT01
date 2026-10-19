@@ -6,7 +6,7 @@ Este guia documenta o passo a passo para provisionar, configurar e integrar apli
 
 ## Criando uma função Lambda por evento
 
-### Usando a UI
+### Usando a UI: 
 
 
 ### Usando CloudFormation
@@ -142,7 +142,129 @@ aws cloudformation wait stack-create-complete --stack-name GuardRailLab
 aws cloudformation describe-stacks --stack-name GuardRailLab --query "Stacks[0].StackStatus"
 ```
 
-## Criando uma função lambda web
+## Criando APIs com API Gateway
 
 O API Gateway é um serviço totalmente gerenciado que permite criar, publicar, manter, monitorar e proteger APIs em qualquer escala. Ele suporta três tipos principais de API.
+
+### Usando a UI: HTTP API
+
+**HTTP API** integrada a uma função **AWS Lambda**.
+
+
+#### Passo 1: Criar a Função Lambda (O Backend)
+1. No console da AWS, na barra de busca superior, pesquise por **Lambda** e abra o serviço.
+2. Clique no botão laranja **Create function** (Criar função).
+3. Selecione **Author from scratch** (Criar do zero).
+4. Em **Function name**, digite um nome, como `minha-funcao-api`.
+5. Em **Runtime**, escolha **Python 3.11** (ou a versão mais recente disponível).
+6. Em **Architecture**, mantenha `x86_64`.
+7. Em **Permissions**, deixe a opção padrão **Create a new role with basic Lambda permissions** (o CloudFormation/Console criará a role automaticamente).
+8. Clique em **Create function**.
+9. Na tela da função, role até o bloco **Code source** e substitua o código padrão pelo seguinte (para retornar uma resposta JSON amigável):
+   ```python
+   def lambda_handler(event, context):
+       return {
+           "statusCode": 200,
+           "body": "Olá do API Gateway + Lambda!"
+       }
+   ```
+10. Clique em **Deploy** para salvar o código.
+
+> **💡 Dica para a apresentação:** Mostre o código e explique que o objeto `event` (não usado aqui, mas disponível) conteria os dados da requisição HTTP, e o `statusCode` + `body` são exatamente o que o API Gateway devolverá ao cliente.
+
+
+#### Passo 2: Criar a HTTP API no API Gateway
+1. Na barra de busca superior, pesquise por **API Gateway** e abra o serviço.
+2. Na página inicial do API Gateway, clique em **Create API** (Criar API).
+3. No cartão **HTTP API**, clique em **Build** (Construir).
+4. Em **API name**, digite um nome, como `minha-http-api`.
+5. Em **Integrations**, clique em **Add integration** (Adicionar integração).
+6. Selecione **Lambda**.
+7. No campo **Lambda function**, digite o nome da função criada no Passo 1 (`minha-funcao-api`) e selecione-a na lista.
+8. Clique em **Next** (Avançar).
+9. Na tela **Configure routes** (Configurar rotas):
+   - **Method**: deixe `GET`.
+   - **Path**: deixe `/` (a rota padrão "catch-all").
+10. Clique em **Next**.
+11. Na tela **Define stages** (Definir estágios):
+    - **Stage name**: digite `prod` (ou `$default`).
+    - Deixe a opção **Auto-deploy** (Implantação automática) **marcada**.
+12. Clique em **Next**.
+13. Revise as configurações e clique em **Create** (Criar).
+
+
+#### Passo 3: Testar a API
+1. Após a criação, você será redirecionado para a página de detalhes da API.
+2. Localize o campo **Invoke URL** (URL de invocação). Ele terá um formato como:
+   ```
+   https://abc123.execute-api.us-east-1.amazonaws.com/prod
+   ```
+3. Copie essa URL.
+4. Abra uma nova aba do navegador e cole a URL (ou use o comando `curl` no CloudShell: `curl https://SUA-URL`).
+5. Você deverá ver a resposta: `"Olá do API Gateway + Lambda!"`.
+
+#### Passo 4: Limpeza
+Para evitar custos desnecessários no Learner Lab:
+1. No console do API Gateway, selecione a API criada.
+2. Clique em **Delete** (Excluir) e confirme.
+3. No console do Lambda, selecione a função `minha-funcao-api` e exclua-a (a role do IAM criada automaticamente também pode ser removida, se desejar).
+
+
+### Usando CloudFormation: API Rest
+
+```bash
+Resources:
+  # 1. A Função Lambda (Backend)
+  MinhaFuncaoHello:
+    Type: AWS::Lambda::Function
+    Properties:
+      Handler: index.handler
+      Runtime: python3.11
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Code:
+        ZipFile: |
+          def handler(event, context):
+              return {
+                  "statusCode": 200,
+                  "body": "Olá do API Gateway + Lambda!"
+              }
+
+  # 2. A API no API Gateway
+  MinhaApiRest:
+    Type: AWS::ApiGateway::RestApi
+    Properties:
+      Name: "MinhaPrimeiraAPI"
+
+  # 3. O Recurso (ex: /hello)
+  RecursoHello:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      RestApiId: !Ref MinhaApiRest
+      ParentId: !GetAtt MinhaApiRest.RootResourceId
+      PathPart: "hello"
+
+  # 4. O Método (GET) com Integração Proxy para o Lambda
+  MetodoGetHello:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref MinhaApiRest
+      ResourceId: !Ref RecursoHello
+      HttpMethod: "GET"
+      AuthorizationType: "NONE"
+      Integration:
+        Type: "AWS_PROXY" # O modo de integração que repassa tudo para o Lambda
+        IntegrationHttpMethod: "POST"
+        Uri: !Sub 
+          - "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${LambdaArn}/invocations"
+          - LambdaArn: !GetAtt MinhaFuncaoHello.Arn
+
+  # 5. Permissão para o API Gateway invocar o Lambda
+  PermissaoApiInvocaLambda:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !GetAtt MinhaFuncaoHello.Arn
+      Action: "lambda:InvokeFunction"
+      Principal: "apigateway.amazonaws.com"
+      SourceArn: !Sub "arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${MinhaApiRest}/*"
+```
 
