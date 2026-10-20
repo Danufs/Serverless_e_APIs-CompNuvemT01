@@ -104,6 +104,12 @@ Parameters:
     Type: AWS::EC2::Image::Id
     Default: 'ami-0c55b159cbfafe1f0'
     Description: 'AMI Amazon Linux 2'
+  LambdaTimeout:
+    Type: Number
+    Default: 30
+    MinValue: 3
+    MaxValue: 900
+    Description: 'Timeout da Lambda em segundos'
 
 Resources:
   # 1. Instancia EC2 de teste (ja nasce com a tag que o Lambda vai buscar)
@@ -126,36 +132,36 @@ Resources:
       Runtime: 'python3.11'
       Handler: 'index.lambda_handler'
       Role: !Sub 'arn:aws:iam::${AWS::AccountId}:role/${LabRoleName}'
-      Timeout: 30
+      Timeout: !Ref LambdaTimeout
       MemorySize: 128
       Code:
         ZipFile: |
           import boto3
 
-            def lambda_handler(event, context):
-                ec2 = boto3.client('ec2')
-                
-                # Filtra instâncias em execução que tenham a tag AutoStop=true
-                response = ec2.describe_instances(
-                    Filters=[
-                        {'Name': 'instance-state-name', 'Values': ['running']},
-                        {'Name': 'tag:AutoStop', 'Values': ['true']},
-                        {'Name': 'instance-type', 'Values': ['t3.micro']}
-                    ]
-                )
-                
-                instance_ids = []
-                for reservation in response['Reservations']:
-                    for instance in reservation['Instances']:
-                        instance_ids.append(instance['InstanceId'])
-                
-                if instance_ids:
-                    ec2.stop_instances(InstanceIds=instance_ids)
-                    print(f'Instancias paradas com sucesso: {instance_ids}')
-                    return f'Paradas: {instance_ids}'
-                else:
-                    print('Nenhuma instancia t3.micro com a tag AutoStop=true foi encontrada.')
-                    return 'Nada a fazer.'
+          def lambda_handler(event, context):
+              ec2 = boto3.client('ec2')
+
+              # Filtra instancias em execucao que tenham a tag AutoStop=true
+              response = ec2.describe_instances(
+                  Filters=[
+                      {'Name': 'instance-state-name', 'Values': ['running']},
+                      {'Name': 'tag:AutoStop', 'Values': ['true']},
+                      {'Name': 'instance-type', 'Values': ['t3.micro']}
+                  ]
+              )
+
+              instance_ids = []
+              for reservation in response['Reservations']:
+                  for instance in reservation['Instances']:
+                      instance_ids.append(instance['InstanceId'])
+
+              if instance_ids:
+                  ec2.stop_instances(InstanceIds=instance_ids)
+                  print(f'Instancias paradas com sucesso: {instance_ids}')
+                  return f'Paradas: {instance_ids}'
+              else:
+                  print('Nenhuma instancia t3.micro com a tag AutoStop=true foi encontrada.')
+                  return 'Nada a fazer.'
 
   # 3. Permissao para o EventBridge invocar o Lambda
   PermissionForEvents:
@@ -170,7 +176,7 @@ Resources:
     Type: AWS::Events::Rule
     Properties:
       Name: 'GuardRailSchedule'
-      Description: 'Dispara o GuardRail a cada 1 minutos'
+      Description: 'Dispara o GuardRail a cada 1 minuto'
       ScheduleExpression: 'rate(1 minute)'
       State: 'ENABLED'
       Targets:
@@ -178,17 +184,6 @@ Resources:
           Id: 'GuardRailTarget'
 ```
 
-3. Valide o arquivo:
-```bash
-aws cloudformation validate-template --template-body file://guardrail-cost.yaml
-```
-4. Crie a stack (o `CAPABILITY_NAMED_IAM` é obrigatório pois criamos uma Role com nome específico):
-```bash
-aws cloudformation create-stack \
-  --stack-name GuardRailLab \
-  --template-body file://guardrail-cost.yaml \
-  --capabilities CAPABILITY_NAMED_IAM
-```
 5. Acompanhe a criação e o status:
 ```bash
 aws cloudformation wait stack-create-complete --stack-name GuardRailLab
