@@ -39,10 +39,12 @@ def lambda_handler(event, context):
     ec2 = boto3.client('ec2')
     
     # Filtra instâncias em execução que tenham a tag AutoStop=true
+    # e sejam do tipo t3.small (padrão do laboratório)
     response = ec2.describe_instances(
         Filters=[
             {'Name': 'instance-state-name', 'Values': ['running']},
-            {'Name': 'tag:AutoStop', 'Values': ['true']}
+            {'Name': 'tag:AutoStop', 'Values': ['true']},
+            {'Name': 'instance-type', 'Values': ['t3.small']}
         ]
     )
     
@@ -56,7 +58,7 @@ def lambda_handler(event, context):
         print(f'Instancias paradas com sucesso: {instance_ids}')
         return f'Paradas: {instance_ids}'
     else:
-        print('Nenhuma instancia com a tag AutoStop=true foi encontrada.')
+        print('Nenhuma instancia t3.small com a tag AutoStop=true foi encontrada.')
         return 'Nada a fazer.'
 ```
 3. Clique em **Deploy**.
@@ -110,7 +112,7 @@ Resources:
   MinhaInstanciaDeTeste:
     Type: AWS::EC2::Instance
     Properties:
-      InstanceType: t2.micro
+      InstanceType: t3.small
       ImageId: !Ref AmiId
       Tags:
         - Key: Name
