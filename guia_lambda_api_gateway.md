@@ -95,61 +95,43 @@ EOF
 AWSTemplateFormatVersion: '2010-09-09'
 Description: 'Lab: GuardRail de Custos - Para instancias EC2 com a tag AutoStop=true'
 
+Parameters:
+  LabRoleName:
+    Type: String
+    Default: 'LabRole'
+    Description: 'Nome da role pre-criada no AWS Academy Learner Lab'
+  AmiId:
+    Type: AWS::EC2::Image::Id
+    Default: 'ami-0c55b159cbfafe1f0'
+    Description: 'AMI Amazon Linux 2 (ajuste conforme a regiao do seu lab)'
+
 Resources:
-  # 1. Instância EC2 de teste (já nasce com a tag que o Lambda vai buscar)
+  # 1. Instancia EC2 de teste (ja nasce com a tag que o Lambda vai buscar)
   MinhaInstanciaDeTeste:
     Type: AWS::EC2::Instance
     Properties:
       InstanceType: t2.micro
-      ImageId: ami-0c55b159cbfafe1f0 # Amazon Linux 2 (verifique se esta AMI existe na sua região)
+      ImageId: !Ref AmiId
       Tags:
         - Key: Name
           Value: Instancia-GuardRail
         - Key: AutoStop
           Value: 'true'
 
-  # 2. Role do IAM para o Lambda
-  GuardRailLambdaRole:
-    Type: AWS::IAM::Role
-    Properties:
-      AssumeRolePolicyDocument:
-        Version: '2012-10-17'
-        Statement:
-          - Effect: Allow
-            Principal:
-              Service: lambda.amazonaws.com
-            Action: sts:AssumeRole
-      Policies:
-        - PolicyName: GuardRailPolicy
-          PolicyDocument:
-            Version: '2012-10-17'
-            Statement:
-              - Effect: Allow
-                Action:
-                  - ec2:DescribeInstances
-                  - ec2:StopInstances
-                Resource: '*'
-              - Effect: Allow
-                Action:
-                  - logs:CreateLogGroup
-                  - logs:CreateLogStream
-                  - logs:PutLogEvents
-                Resource: 'arn:aws:logs:*:*:*'
-
-  # 3. Funcao Lambda
+  # 2. Funcao Lambda - usa a LabRole existente (nao cria role nova)
   GuardRailFunction:
     Type: AWS::Lambda::Function
     Properties:
       FunctionName: 'guardrail-stop-by-tag'
       Runtime: 'python3.11'
       Handler: 'index.lambda_handler'
-      Role: !GetAtt GuardRailLambdaRole.Arn
+      Role: !Sub 'arn:aws:iam::${AWS::AccountId}:role/${LabRoleName}'
       Timeout: 30
       MemorySize: 128
       Code:
         ZipFile: |
           import boto3
-          
+
           def lambda_handler(event, context):
               ec2 = boto3.client('ec2')
               response = ec2.describe_instances(
@@ -162,7 +144,7 @@ Resources:
               for reservation in response['Reservations']:
                   for instance in reservation['Instances']:
                       instance_ids.append(instance['InstanceId'])
-              
+
               if instance_ids:
                   ec2.stop_instances(InstanceIds=instance_ids)
                   print(f'Instancias paradas: {instance_ids}')
@@ -171,7 +153,7 @@ Resources:
                   print('Nenhuma instancia encontrada.')
                   return 'Nada a fazer.'
 
-  # 4. Permissao para o EventBridge invocar o Lambda
+  # 3. Permissao para o EventBridge invocar o Lambda
   PermissionForEvents:
     Type: AWS::Lambda::Permission
     Properties:
@@ -179,7 +161,7 @@ Resources:
       Action: 'lambda:InvokeFunction'
       Principal: 'events.amazonaws.com'
 
-  # 5. Regra do EventBridge (Agendamento)
+  # 4. Regra do EventBridge (Agendamento)
   ScheduleRule:
     Type: AWS::Events::Rule
     Properties:
