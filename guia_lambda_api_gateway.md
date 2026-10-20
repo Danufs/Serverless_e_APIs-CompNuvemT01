@@ -13,7 +13,7 @@ Nesta etapa, vamos criar um "GuardRail" (protetor de custos). A função será a
 ### Opção A: Usando a Interface (UI)
 
 #### Pré-requisito: Preparar a Instância EC2
-1. Vá ao console do **Amazon EC2** e inicie uma instância (pode ser a `t2.micro` padrão).
+1. Vá ao console do **Amazon EC2** e inicie uma instância (pode ser a `t3.micro` padrão).
 2. Após a criação, selecione a instância, vá em **Tags** e adicione:
    - **Chave:** `AutoStop`
    - **Valor:** `true`
