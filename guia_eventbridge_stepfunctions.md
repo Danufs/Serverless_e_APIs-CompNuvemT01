@@ -290,19 +290,7 @@ Failure
 
 ---
 
-# Provisionamento com CloudFormation
-
-Em vez de criar cada recurso individualmente através da AWS CLI, também é possível provisionar toda a solução utilizando uma única Stack CloudFormation.
-
-## Template CloudFormation
-
-Criar e editar o arquivo:
-
-```bash
-nano eventbridge-stepfunctions.yml
-```
-
-Conteúdo:
+# Template CloudFormation
 
 ```yaml
 AWSTemplateFormatVersion: '2010-09-09'
@@ -322,7 +310,7 @@ Resources:
       Runtime: python3.11
       Handler: index.lambda_handler
       Timeout: 10
-      Role: arn:aws:iam::<ACCOUNT_ID>:role/LabRole
+      Role: !Sub "arn:aws:iam::${AWS::AccountId}:role/LabRole"
 
       Code:
         ZipFile: |
@@ -340,7 +328,7 @@ Resources:
   OrderStateMachine:
     Type: AWS::StepFunctions::StateMachine
     Properties:
-      RoleArn: arn:aws:iam::<ACCOUNT_ID>:role/LabRole
+      RoleArn: !Sub "arn:aws:iam::${AWS::AccountId}:role/LabRole"
 
       DefinitionString:
         !Sub |
@@ -398,28 +386,6 @@ Resources:
           Id: StepFunctionsTarget
 ```
 
-Substituir:
-
-```text
-<ACCOUNT_ID>
-```
-
-pelo valor exibido em:
-
-```bash
-echo $ACCOUNT_ID
-```
-
----
-
-## Criar a Stack
-
-```bash
-aws cloudformation deploy \
-  --template-file eventbridge-stepfunctions.yml \
-  --stack-name academy-event-demo
-```
-
 ---
 
 # Teste Após o Deploy
@@ -468,5 +434,3 @@ aws lambda delete-function \
 aws events delete-event-bus \
   --name academy-bus
 ```
-
-> Importante: Remova todos os recursos ao final do laboratório para evitar consumo desnecessário dos créditos disponíveis no AWS Academy.
