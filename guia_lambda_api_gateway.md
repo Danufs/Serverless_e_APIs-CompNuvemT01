@@ -69,7 +69,7 @@ def lambda_handler(event, context):
 4. Preencha:
    - **Rule name:** `GuardRailSchedule`
    - **Rule type:** `Schedule expression`
-   - **Schedule expression:** `rate(5 minutes)`
+   - **Schedule expression:** `rate(1 minutes)`
 5. Clique em **Add**.
 
 #### 🧹 Limpeza (Evitar custos no Academy)
@@ -104,7 +104,7 @@ Parameters:
   AmiId:
     Type: AWS::EC2::Image::Id
     Default: 'ami-0c55b159cbfafe1f0'
-    Description: 'AMI Amazon Linux 2 (ajuste conforme a regiao do seu lab)'
+    Description: 'AMI Amazon Linux 2'
 
 Resources:
   # 1. Instancia EC2 de teste (ja nasce com a tag que o Lambda vai buscar)
@@ -119,7 +119,7 @@ Resources:
         - Key: AutoStop
           Value: 'true'
 
-  # 2. Funcao Lambda - usa a LabRole existente (nao cria role nova)
+  # 2. Funcao Lambda - usa a LabRole existente
   GuardRailFunction:
     Type: AWS::Lambda::Function
     Properties:
@@ -133,26 +133,30 @@ Resources:
         ZipFile: |
           import boto3
 
-          def lambda_handler(event, context):
-              ec2 = boto3.client('ec2')
-              response = ec2.describe_instances(
-                  Filters=[
-                      {'Name': 'instance-state-name', 'Values': ['running']},
-                      {'Name': 'tag:AutoStop', 'Values': ['true']}
-                  ]
-              )
-              instance_ids = []
-              for reservation in response['Reservations']:
-                  for instance in reservation['Instances']:
-                      instance_ids.append(instance['InstanceId'])
-
-              if instance_ids:
-                  ec2.stop_instances(InstanceIds=instance_ids)
-                  print(f'Instancias paradas: {instance_ids}')
-                  return f'Paradas: {instance_ids}'
-              else:
-                  print('Nenhuma instancia encontrada.')
-                  return 'Nada a fazer.'
+            def lambda_handler(event, context):
+                ec2 = boto3.client('ec2')
+                
+                # Filtra instâncias em execução que tenham a tag AutoStop=true
+                response = ec2.describe_instances(
+                    Filters=[
+                        {'Name': 'instance-state-name', 'Values': ['running']},
+                        {'Name': 'tag:AutoStop', 'Values': ['true']},
+                        {'Name': 'instance-type', 'Values': ['t3.small']}
+                    ]
+                )
+                
+                instance_ids = []
+                for reservation in response['Reservations']:
+                    for instance in reservation['Instances']:
+                        instance_ids.append(instance['InstanceId'])
+                
+                if instance_ids:
+                    ec2.stop_instances(InstanceIds=instance_ids)
+                    print(f'Instancias paradas com sucesso: {instance_ids}')
+                    return f'Paradas: {instance_ids}'
+                else:
+                    print('Nenhuma instancia t3.small com a tag AutoStop=true foi encontrada.')
+                    return 'Nada a fazer.'
 
   # 3. Permissao para o EventBridge invocar o Lambda
   PermissionForEvents:
@@ -167,8 +171,8 @@ Resources:
     Type: AWS::Events::Rule
     Properties:
       Name: 'GuardRailSchedule'
-      Description: 'Dispara o GuardRail a cada 5 minutos'
-      ScheduleExpression: 'rate(5 minutes)'
+      Description: 'Dispara o GuardRail a cada 1 minutos'
+      ScheduleExpression: 'rate(1 minutes)'
       State: 'ENABLED'
       Targets:
         - Arn: !GetAtt GuardRailFunction.Arn
