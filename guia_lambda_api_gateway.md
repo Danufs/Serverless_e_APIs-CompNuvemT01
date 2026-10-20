@@ -43,7 +43,7 @@ def lambda_handler(event, context):
         Filters=[
             {'Name': 'instance-state-name', 'Values': ['running']},
             {'Name': 'tag:AutoStop', 'Values': ['true']},
-            {'Name': 'instance-type', 'Values': ['t3.small']}
+            {'Name': 'instance-type', 'Values': ['t3.micro']}
         ]
     )
     
@@ -111,7 +111,7 @@ Resources:
   MinhaInstanciaDeTeste:
     Type: AWS::EC2::Instance
     Properties:
-      InstanceType: t3.small
+      InstanceType: t3.micro
       ImageId: !Ref AmiId
       Tags:
         - Key: Name
@@ -141,7 +141,7 @@ Resources:
                     Filters=[
                         {'Name': 'instance-state-name', 'Values': ['running']},
                         {'Name': 'tag:AutoStop', 'Values': ['true']},
-                        {'Name': 'instance-type', 'Values': ['t3.small']}
+                        {'Name': 'instance-type', 'Values': ['t3.micro']}
                     ]
                 )
                 
