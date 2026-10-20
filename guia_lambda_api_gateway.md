@@ -26,7 +26,7 @@ Nesta etapa, vamos criar um "GuardRail" (protetor de custos). A função será a
    - **Function name:** `guardrail-stop-by-tag`
    - **Runtime:** `Python 3.11`
    - Em **Permissions**, expanda **Change default execution role** e escolha **Use an existing role**.
-   - Selecione a role `LabRole` criada no Passo 1.
+   - Selecione a role `LabRole`.
 5. Clique em **Create function**.
 
 #### Passo 2: Inserir o Código
