@@ -18,16 +18,7 @@ Nesta etapa, vamos criar um "GuardRail" (protetor de custos). A função será a
    - **Chave:** `AutoStop`
    - **Valor:** `true`
 
-#### Passo 1: Criar a Role do IAM (Permissões)
-A função Lambda precisará de permissão para listar e parar instâncias.
-1. No console da AWS, pesquise por **IAM** e abra o serviço.
-2. No menu lateral, clique em **Roles** e depois em **Create role**.
-3. Selecione **AWS service** e escolha **Lambda** na lista. Clique em **Next**.
-4. Na tela de permissões, clique em **Create policy** (abrirá em outra aba) ou adicione uma política inline com as seguintes permissões (JSON):
-   - Ações: `ec2:DescribeInstances`, `ec2:StopInstances`, `logs:CreateLogGroup`, `logs:CreateLogStream`, `logs:PutLogEvents`.
-5. Dê o nome de `GuardRailLambdaRole` e clique em **Create role**.
-
-#### Passo 2: Criar a Função Lambda
+#### Passo 1: Criar a Função Lambda
 1. No console da AWS, pesquise por **Lambda** e abra o serviço.
 2. Clique em **Create function**.
 3. Selecione **Author from scratch**.
@@ -38,7 +29,7 @@ A função Lambda precisará de permissão para listar e parar instâncias.
    - Selecione a role `GuardRailLambdaRole` criada no Passo 1.
 5. Clique em **Create function**.
 
-#### Passo 3: Inserir o Código
+#### Passo 2: Inserir o Código
 1. Na tela da função, role até o bloco **Code source**.
 2. Apague o código padrão e cole o código abaixo:
 ```python
@@ -70,7 +61,7 @@ def lambda_handler(event, context):
 ```
 3. Clique em **Deploy**.
 
-#### Passo 4: Configurar o Gatilho (EventBridge)
+#### Passo 3: Configurar o Gatilho (EventBridge)
 1. Na página da função, clique em **+ Add trigger**.
 2. Selecione **EventBridge (CloudWatch Events)**.
 3. Em **Rule**, escolha **Create a new rule**.
