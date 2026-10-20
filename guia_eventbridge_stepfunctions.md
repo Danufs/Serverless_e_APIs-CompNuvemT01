@@ -384,6 +384,7 @@ Resources:
       Targets:
         - Arn: !Ref OrderStateMachine
           Id: StepFunctionsTarget
+          RoleArn: !Sub "arn:aws:iam::${AWS::AccountId}:role/LabRole"
 ```
 
 ---
