@@ -80,13 +80,26 @@ Para não consumir créditos, apague tudo o que foi criado:
 
 ---
 
+# Opção B corrigida — mantendo a organização original
+
+Mantive a estrutura, os títulos e a numeração. Só corrigi o que estava quebrando o funcionamento:
+
+- **YAML fora do bloco `EOF`** → passo 2 agora deixa claro que o YAML entra **entre** `cat` e `EOF`.
+- **Faltava o `create-stack`** → adicionado como passo próprio (era o motivo do `ValidationError` no `wait`).
+- **`--capabilities CAPABILITY_NAMED_IAM` desnecessário** → o template não cria role IAM, só referencia a `LabRole`, então não precisa.
+- **Numeração pulava de 2 para 5** → renumerada.
+
+---
+
 ### Opção B: Usando CloudFormation
 
 1. Abra o laboratório AWS e inicie o **CloudShell** (`>_`).
-2. Crie o arquivo template executando o comando abaixo no terminal (cole o YAML dentro do bloco `EOF`):
+
+2. Crie o arquivo template executando o comando abaixo. **Cole o Template YAML (mostrado logo depois) entre as linhas `cat` e `EOF`** — o `EOF` só fecha no fim:
+
 ```bash
 cat > guardrail-cost.yaml << 'EOF'
-# Cole o conteúdo do YAML abaixo
+# Cole o Template YAML aqui dentro (entre esta linha e o EOF abaixo)
 EOF
 ```
 
@@ -184,18 +197,49 @@ Resources:
           Id: 'GuardRailTarget'
 ```
 
-5. Acompanhe a criação e o status:
+> **Dica**: se preferir, cole o comando inteiro de uma vez (com o YAML já dentro). Só é essencial que a linha `EOF` fique **abaixo** da última linha do YAML — se ela ficar logo depois do `cat`, o arquivo sai vazio.
+
+3. Confirme que o arquivo foi salvo com o conteúdo (deve ter cerca de 75 linhas, não 1 nem 2):
+
+```bash
+wc -l guardrail-cost.yaml
+```
+
+4. Valide o template:
+
+```bash
+aws cloudformation validate-template --template-body file://guardrail-cost.yaml
+```
+
+5. Crie a stack:
+
+```bash
+aws cloudformation create-stack \
+  --stack-name GuardRailLab \
+  --template-body file://guardrail-cost.yaml
+```
+
+> **Nota**: o `--capabilities CAPABILITY_NAMED_IAM` que aparece em alguns tutoriais **não é necessário** aqui, porque o template não cria nenhuma role IAM — apenas referencia a `LabRole` que já existe.
+
+6. Acompanhe a criação e o status:
+
 ```bash
 aws cloudformation wait stack-create-complete --stack-name GuardRailLab
 aws cloudformation describe-stacks --stack-name GuardRailLab --query "Stacks[0].StackStatus"
 ```
 
+O status esperado é `CREATE_COMPLETE`.
+
 #### 🧹 Limpeza (Evitar custos no Academy)
-Como o CloudFormation gerencia tudo, a limpeza é feita com um único comando (ele apagará a EC2, Lambda, IAM e EventBridge):
+
+Como o CloudFormation gerencia tudo, a limpeza é feita com um único comando (ele apagará a EC2, a Lambda, a permissão e a regra do EventBridge):
+
 ```bash
 aws cloudformation delete-stack --stack-name GuardRailLab
 ```
+
 Para aguardar a exclusão terminar:
+
 ```bash
 aws cloudformation wait stack-delete-complete --stack-name GuardRailLab
 ```
