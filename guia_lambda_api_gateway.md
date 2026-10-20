@@ -80,17 +80,6 @@ Para não consumir créditos, apague tudo o que foi criado:
 
 ---
 
-# Opção B corrigida — mantendo a organização original
-
-Mantive a estrutura, os títulos e a numeração. Só corrigi o que estava quebrando o funcionamento:
-
-- **YAML fora do bloco `EOF`** → passo 2 agora deixa claro que o YAML entra **entre** `cat` e `EOF`.
-- **Faltava o `create-stack`** → adicionado como passo próprio (era o motivo do `ValidationError` no `wait`).
-- **`--capabilities CAPABILITY_NAMED_IAM` desnecessário** → o template não cria role IAM, só referencia a `LabRole`, então não precisa.
-- **Numeração pulava de 2 para 5** → renumerada.
-
----
-
 ### Opção B: Usando CloudFormation
 
 1. Abra o laboratório AWS e inicie o **CloudShell** (`>_`).
