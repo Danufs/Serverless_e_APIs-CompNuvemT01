@@ -39,7 +39,6 @@ def lambda_handler(event, context):
     ec2 = boto3.client('ec2')
     
     # Filtra instâncias em execução que tenham a tag AutoStop=true
-    # e sejam do tipo t3.small (padrão do laboratório)
     response = ec2.describe_instances(
         Filters=[
             {'Name': 'instance-state-name', 'Values': ['running']},
