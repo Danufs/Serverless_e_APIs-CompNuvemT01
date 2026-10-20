@@ -73,7 +73,7 @@ import random
 
 def lambda_handler(event, context):
 
-    if random.randint(1,10) <= 6:
+    if random.randint(1,10) <= 8:
         raise Exception("Falha simulada")
 
     return {
@@ -317,7 +317,7 @@ Resources:
           import random
 
           def lambda_handler(event, context):
-              if random.randint(1,10) <= 6:
+              if random.randint(1,10) <= 8:
                   raise Exception("Falha simulada")
 
               return {
