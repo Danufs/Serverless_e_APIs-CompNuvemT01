@@ -76,8 +76,7 @@ def lambda_handler(event, context):
 Para não consumir créditos, apague tudo o que foi criado:
 1. **EventBridge:** Vá em EventBridge > Rules, selecione `GuardRailSchedule` e clique em **Delete**.
 2. **Lambda:** Vá em Lambda, selecione `guardrail-stop-by-tag` e clique em **Actions > Delete**.
-3. **IAM:** Vá em IAM > Roles, busque por `GuardRailLambdaRole`, selecione e clique em **Delete**.
-4. **EC2:** Vá em EC2 > Instances, selecione a instância de teste, clique em **Instance State > Terminate instance**.
+. **EC2:** Vá em EC2 > Instances, selecione a instância de teste, clique em **Instance State > Terminate instance**.
 
 ---
 
@@ -155,7 +154,7 @@ Resources:
                     print(f'Instancias paradas com sucesso: {instance_ids}')
                     return f'Paradas: {instance_ids}'
                 else:
-                    print('Nenhuma instancia t3.small com a tag AutoStop=true foi encontrada.')
+                    print('Nenhuma instancia t3.micro com a tag AutoStop=true foi encontrada.')
                     return 'Nada a fazer.'
 
   # 3. Permissao para o EventBridge invocar o Lambda
@@ -172,7 +171,7 @@ Resources:
     Properties:
       Name: 'GuardRailSchedule'
       Description: 'Dispara o GuardRail a cada 1 minutos'
-      ScheduleExpression: 'rate(1 minutes)'
+      ScheduleExpression: 'rate(1 minute)'
       State: 'ENABLED'
       Targets:
         - Arn: !GetAtt GuardRailFunction.Arn
