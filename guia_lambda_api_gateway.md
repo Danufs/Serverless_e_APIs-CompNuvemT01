@@ -208,8 +208,6 @@ aws cloudformation create-stack \
   --template-body file://guardrail-cost.yaml
 ```
 
-> **Nota**: o `--capabilities CAPABILITY_NAMED_IAM` que aparece em alguns tutoriais **não é necessário** aqui, porque o template não cria nenhuma role IAM — apenas referencia a `LabRole` que já existe.
-
 6. Acompanhe a criação e o status:
 
 ```bash
