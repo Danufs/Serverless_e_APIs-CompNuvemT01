@@ -290,7 +290,7 @@ Failure
 
 ---
 
-# Parte 2: Provisionamento com CloudFormation
+# Provisionamento com CloudFormation
 
 Em vez de criar cada recurso individualmente através da AWS CLI, também é possível provisionar toda a solução utilizando uma única Stack CloudFormation.
 
