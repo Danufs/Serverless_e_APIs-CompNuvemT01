@@ -104,8 +104,8 @@ Parameters:
     Description: 'Nome da role pre-criada no AWS Academy Learner Lab'
   AmiId:
     Type: AWS::EC2::Image::Id
-    Default: 'ami-0c55b159cbfafe1f0'
-    Description: 'AMI Amazon Linux 2'
+    Default: 'ami-0292859281a0c8e80'
+    Description: 'AMI Amazon Linux'
   LambdaTimeout:
     Type: Number
     Default: 30
