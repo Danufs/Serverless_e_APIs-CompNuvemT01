@@ -232,27 +232,3 @@ aws cloudformation wait stack-delete-complete --stack-name GuardRailLab
 ```
 
 ---
-
-Encontrei os erros! O principal motivo do seu `403 Forbidden` anterior está justamente aqui no texto. 
-
-O seu arquivo tem **três erros graves** que impedem a API de funcionar e o teste de passar. Vou listá-los e depois te dar o texto corrigido.
-
-### 🚨 Os Erros no arquivo:
-
-1. **Incompatibilidade de Rota (O motivo do seu erro 403)**:
-   * No **Passo 2**, você manda criar a rota como `GET /` (apenas a barra).
-   * No **Passo 5**, você manda testar a URL `.../status`. 
-   * **O problema:** A rota `/status` não existe na sua API (você criou a `/`). Quando você chama uma rota que não existe, o API Gateway retorna `403 Forbidden`.
-   * **Solução:** Ou você cria a rota como `/status` no Passo 2, ou testa apenas a URL base no Passo 5.
-
-2. **Confusão no IAM (Passo 3)**:
-   * O título fala em "Lambda Authorizer", mas o texto manda selecionar o "IAM". 
-   * Além disso, **não existe** essa opção "Manage authorizers > selecionar o IAM" no console do HTTP API. O IAM não é um "Authorizer" na interface; ele é ativado na própria rota.
-   * **Solução:** Para usar IAM no HTTP API, você precisa ir em **Routes**, selecionar a rota `GET /`, clicar em **Edit**, e mudar o *Authorization type* para **AWS_IAM**.
-
-3. **Código do Lambda (Passo 1)**:
-   * O código no texto diz `"mensagem": "Olá do HTTP API + Lambda!"`.
-   * Mas no Passo 5, a explicação diz que o retorno será "o corpo JSON com a lista de instâncias do seu Lambda".
-   * **O problema:** O código não busca instâncias, só devolve um "Olá". É só uma inconsistência de texto, mas confunde na hora de explicar.
-
----
