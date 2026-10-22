@@ -233,20 +233,43 @@ aws cloudformation wait stack-delete-complete --stack-name GuardRailLab
 
 ---
 
-## Parte 2: Criando APIs com API Gateway (HTTP API)
+Encontrei os erros! O principal motivo do seu `403 Forbidden` anterior está justamente aqui no texto. 
 
-O API Gateway é um serviço totalmente gerenciado que permite criar, publicar, manter, monitorar e proteger APIs em qualquer escala. Nesta versão, usaremos a **HTTP API**, que é mais barata, rápida e possui deploy automático.
+O seu arquivo tem **três erros graves** que impedem a API de funcionar e o teste de passar. Vou listá-los e depois te dar o texto corrigido.
 
-## Opção A: Usando a UI (HTTP API)
+### 🚨 Os Erros no arquivo:
 
-### Passo 1: Criar a Função Lambda (O Backend)
+1. **Incompatibilidade de Rota (O motivo do seu erro 403)**:
+   * No **Passo 2**, você manda criar a rota como `GET /` (apenas a barra).
+   * No **Passo 5**, você manda testar a URL `.../status`. 
+   * **O problema:** A rota `/status` não existe na sua API (você criou a `/`). Quando você chama uma rota que não existe, o API Gateway retorna `403 Forbidden`.
+   * **Solução:** Ou você cria a rota como `/status` no Passo 2, ou testa apenas a URL base no Passo 5.
+
+2. **Confusão no IAM (Passo 3)**:
+   * O título fala em "Lambda Authorizer", mas o texto manda selecionar o "IAM". 
+   * Além disso, **não existe** essa opção "Manage authorizers > selecionar o IAM" no console do HTTP API. O IAM não é um "Authorizer" na interface; ele é ativado na própria rota.
+   * **Solução:** Para usar IAM no HTTP API, você precisa ir em **Routes**, selecionar a rota `GET /`, clicar em **Edit**, e mudar o *Authorization type* para **AWS_IAM**.
+
+3. **Código do Lambda (Passo 1)**:
+   * O código no texto diz `"mensagem": "Olá do HTTP API + Lambda!"`.
+   * Mas no Passo 5, a explicação diz que o retorno será "o corpo JSON com a lista de instâncias do seu Lambda".
+   * **O problema:** O código não busca instâncias, só devolve um "Olá". É só uma inconsistência de texto, mas confunde na hora de explicar.
+
+---
+
+## Parte 2: Criando APIs com API Gateway (HTTP API)**
+
+**Opção A: Usando a UI (HTTP API)**
+Integração de uma HTTP API com uma função AWS Lambda, incluindo configurações de segurança (IAM) e monitoramento.
+
+**Passo 1: Criar a Função Lambda (O Backend)**
 1. No console da AWS, acesse o **Lambda** e clique em **Create function**.
 2. Selecione **Author from scratch**.
 3. Em *Function name*, digite `minha-funcao-api`.
-4. Em *Runtime*, escolha `Python 3.12` (ou 3.11).
-5. Em *Permissions*, selecione **Use an existing role** e escolha a `LabRole` (padrão do Academy).
+4. Em *Runtime*, escolha `Python 3.12`.
+5. Em *Permissions*, selecione **Use an existing role** e escolha a `LabRole`.
 6. Clique em **Create function**.
-7. No bloco *Code source*, substitua o código pelo seguinte (note a estrutura de resposta):
+7. No bloco *Code source*, substitua o código pelo seguinte:
 ```python
 import json
 
@@ -259,56 +282,53 @@ def lambda_handler(event, context):
 ```
 8. Clique em **Deploy**.
 
-### Passo 2: Criar a HTTP API no API Gateway
-1. Na barra de busca, acesse o **API Gateway**.
-2. Clique em **Create API**.
-3. No cartão **HTTP API**, clique em **Build**.
-4. Em *API name*, digite `minha-http-api`.
-5. Em *Integrations*, clique em **Add integration** e selecione **Lambda**.
-6. No campo *Lambda function*, digite `minha-funcao-api` e selecione-a.
+**Passo 2: Criar a HTTP API no API Gateway**
+1. Na barra de busca, acesse o **API Gateway** e clique em **Create API**.
+2. No cartão **HTTP API**, clique em **Build**.
+3. Em *API name*, digite `minha-http-api`.
+4. Em *Integrations*, clique em **Add integration** e selecione **Lambda**. Busque a `minha-funcao-api`.
+5. Clique em **Next**.
+6. Em *Configure routes*, defina:
+   - **Method:** `GET`
+   - **Path:** `/status` *(Atenção: mude de `/` para `/status` para bater com o teste!)*
 7. Clique em **Next**.
-8. Em *Configure routes*, deixe o Method como `GET` e o Path como `/`.
-9. Clique em **Next**.
-10. Em *Define stages*, digite `$default` no Stage name (ou deixe o padrão) e mantenha o **Auto-deploy** marcado.
-11. Clique em **Next** e depois em **Create**.
+8. Em *Define stages*, deixe o Stage name como `$default` e o **Auto-deploy** marcado.
+9. Clique em **Next** e depois em **Create**.
 
-### Passo 3: Configurar Autenticação (Lambda Authorizer)
-*Nota: O HTTP API não possui "API Keys". Para proteger a rota, usamos um Authorizer.*
+**Passo 3: Configurar Autenticação (IAM)**
+*No HTTP API, o IAM não fica no menu "Authorizers", ele é aplicado direto na rota.*
+1. No menu lateral esquerdo da sua API, clique em **Routes**.
+2. Selecione a sua rota `GET /status`.
+3. Clique em **Edit**.
+4. Em *Authorization type*, mude de `NONE` para **AWS_IAM**.
+5. Clique em **Save**.
 
-1. No menu lateral esquerdo da sua API, clique em **Authorization** e depois em **Manage authorizers** > selecionar o **IAM**
-
-### Passo 4: Configurar Throttling (Controle de Tráfego)
-
-1. No menu lateral, clique em **Protect** > **Throttling** > **Select a stage**: `$default`.
-2. Clique em **Edit**.
+**Passo 4: Configurar Throttling (Controle de Tráfego)**
+1. No menu lateral, clique em **Monitor** > **Throttling**.
+2. Selecione o stage `$default` e clique em **Edit**.
 3. Defina:
    - **Rate limit:** 5 (requisições por segundo).
    - **Burst limit:** 10 (picos temporários).
 4. Clique em **Save**.
 
-### Passo 5: Testar a API Protegida (com IAM)
-1. Pegue a URL da API
-Copie a Invoke URL gerada (ex: https://abc123.execute-api.us-east-1.amazonaws.com).
-2. Teste sem credenciais (deve falhar):
-- No seu terminal local ou no navegador, tente acessar:
-https://SUA-URL-DA-API/status
-- Resultado esperado: 403 Forbidden com a mensagem {"message":"Missing Authentication Token"}. Isso prova que a API está protegida e bloqueando acessos anônimos.
-3. Teste com credenciais via CloudShell (deve funcionar)
-- Vá para o CloudShell e execute o comando abaixo. Ele usa a flag --aws-sigv4 para assinar a requisição usando as suas credenciais do laboratório.
+**Passo 5: Testar a API Protegida (com IAM)**
+1. Copie a **Invoke URL** gerada no topo da tela (ex: `https://k5029wdurj.execute-api.us-east-1.amazonaws.com`).
+2. **Teste sem credenciais (deve falhar):**
+   - No navegador, tente acessar: `https://SUA-URL-DA-API/status`.
+   - **Resultado esperado:** `{"message":"Forbidden"}`. Isso prova que a API está bloqueando acessos anônimos.
+3. **Teste com credenciais via CloudShell (deve funcionar):**
+   - Vá para o **CloudShell** e execute o comando abaixo. Ele usa a flag `--aws-sigv4` para assinar a requisição usando as suas credenciais do laboratório.
+   ```bash
+   curl --aws-sigv4 "aws:amz:us-east-1:execute-api" \
+        --user "$AWS_ACCESS_KEY_ID:$AWS_SECRET_ACCESS_KEY" \
+        -H "x-amz-security-token: $AWS_SESSION_TOKEN" \
+        -i "https://SUA-URL-DA-API/status"
+   ```
+   - **Resultado esperado:** `HTTP/2 200` e o corpo JSON `{"mensagem": "Olá do HTTP API + Lambda!"}`.
 
-``` bash
-# Testando a rota GET /status
-curl --aws-sigv4 "aws:amz:us-east-1:execute-api" \
-     --user "$AWS_ACCESS_KEY_ID:$AWS_SECRET_ACCESS_KEY" \
-     -H "x-amz-security-token: $AWS_SESSION_TOKEN" \
-     -i "https://SUA-URL-DA-API/status"
-```
-
-Resultado esperado: HTTP/2 200 e o corpo JSON com a lista de instâncias do seu Lambda.
-
-### 🧹 Limpeza (Evitar custos no Academy)
+**🧹 Limpeza (Evitar custos no Academy)**
 1. **API Gateway:** Selecione a API `minha-http-api`, clique em **Actions > Delete**.
-2. **Lambda:** No console do Lambda, exclua a função `minha-funcao-api` (e a `autorizador-api` se você criou).
+2. **Lambda:** No console do Lambda, exclua a função `minha-funcao-api`.
 
 ---
 
