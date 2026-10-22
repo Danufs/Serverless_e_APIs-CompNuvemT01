@@ -289,24 +289,21 @@ def lambda_handler(event, context):
 ### Passo 5: Testar a API Protegida (com IAM)
 1. Pegue a URL da API
 Copie a Invoke URL gerada (ex: https://abc123.execute-api.us-east-1.amazonaws.com).
-2. Teste sem credenciais (deve falhar)
-
-No seu terminal local ou no navegador, tente acessar:
+2. Teste sem credenciais (deve falhar):
+- No seu terminal local ou no navegador, tente acessar:
 https://SUA-URL-DA-API/status
+- Resultado esperado: 403 Forbidden com a mensagem {"message":"Missing Authentication Token"}. Isso prova que a API está protegida e bloqueando acessos anônimos.
+3. Teste com credenciais via CloudShell (deve funcionar)
+- Vá para o CloudShell e execute o comando abaixo. Ele usa a flag --aws-sigv4 para assinar a requisição usando as suas credenciais do laboratório.
 
-Resultado esperado: 403 Forbidden com a mensagem {"message":"Missing Authentication Token"}. Isso prova que a API está protegida e bloqueando acessos anônimos.
-
-4. Teste com credenciais via CloudShell (deve funcionar)
-Vá para o CloudShell e execute o comando abaixo. Ele usa a flag --aws-sigv4 para assinar a requisição usando as suas credenciais do laboratório.
-
-bash
+``` bash
 # Testando a rota GET /status
 curl --aws-sigv4 "aws:amz:us-east-1:execute-api" \
      --user "$AWS_ACCESS_KEY_ID:$AWS_SECRET_ACCESS_KEY" \
      -H "x-amz-security-token: $AWS_SESSION_TOKEN" \
      -i "https://SUA-URL-DA-API/status"
 Resultado esperado: HTTP/2 200 e o corpo JSON com a lista de instâncias do seu Lambda.
-
+```
 
 ### 🧹 Limpeza (Evitar custos no Academy)
 1. **API Gateway:** Selecione a API `minha-http-api`, clique em **Actions > Delete**.
