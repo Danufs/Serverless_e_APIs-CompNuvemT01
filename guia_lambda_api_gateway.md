@@ -275,41 +275,18 @@ def lambda_handler(event, context):
 ### Passo 3: Configurar Autenticação (Lambda Authorizer)
 *Nota: O HTTP API não possui "API Keys". Para proteger a rota, usamos um Authorizer.*
 
-1. No menu lateral esquerdo da sua API, clique em **Authorization** e depois em **Manage authorizers** > **Create**.
-2. Em *Authorizer type*, selecione **Lambda**.
-3. Em *Name*, digite `meu-autorizador`.
-4. Em *Lambda function*, selecione a opção **Create new Lambda function** (ou use uma existente). Se criar uma nova, dê o nome de `autorizador-api` e use o código abaixo:
-```python
-def lambda_handler(event, context):
-    # Pega o token do cabeçalho Authorization
-    token = (event.get("headers") or {}).get("authorization", "")
-    # Se o token for "segredo123", autoriza; caso contrário, nega.
-    if token == "segredo123":
-        return {"isAuthorized": True}
-    return {"isAuthorized": False}
-```
-5. Em *Identity source*, digite `$request.header.Authorization`.
-6. Clique em **Create**.
-7. Agora, vá em **Routes** > selecione a sua rota `GET /` > clique em **Edit** (ou **Attach authorization**).
-8. Em *Authorization*, selecione o `meu-autorizador` que você acabou de criar e clique em **Save**.
+1. No menu lateral esquerdo da sua API, clique em **Authorization** e depois em **Manage authorizers** > selecionar o **IAM**
 
 ### Passo 4: Configurar Throttling (Controle de Tráfego)
-*No HTTP API, o throttling é configurado no Stage, e não em Usage Plans.*
-1. No menu lateral, clique em **Monitor** > **Throttling** (ou acesse **Stages** > `$default`).
+
+1. No menu lateral, clique em **Protect** > **Throttling** > **Select a stage**: `$default`.
 2. Clique em **Edit**.
 3. Defina:
    - **Rate limit:** 5 (requisições por segundo).
    - **Burst limit:** 10 (picos temporários).
 4. Clique em **Save**.
-*O que isso significa? Se a API receber mais de 5 requisições por segundo, retornará erro 429 (Too Many Requests), protegendo seu Lambda.*
 
-### Passo 5: Habilitar Observabilidade (Logs)
-1. No menu lateral, clique em **Monitor** > **Logging**.
-2. Clique em **Manage logging** e ative o **Access logging**.
-3. No destino, escolha **CloudWatch Logs** e crie um Log Group (ex: `/aws/apigateway/minha-http-api`).
-4. Em *Log format*, escolha **JSON** e clique em **Save**.
-
-### Passo 6: Testar a API Protegida
+### Passo 5: Testar a API Protegida
 1. Copie a **Invoke URL** gerada (ex: `https://abc123.execute-api.us-east-1.amazonaws.com`). *Note que não há `/prod` ou `/default` no final.*
 2. **Teste sem o token:** Abra no navegador ou rode `curl https://SUA-URL`. Você receberá um erro `401 Unauthorized` ou `403 Forbidden`.
 3. **Teste com o token:** No CloudShell, execute o comando:
