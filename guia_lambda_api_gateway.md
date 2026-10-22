@@ -233,243 +233,250 @@ aws cloudformation wait stack-delete-complete --stack-name GuardRailLab
 
 ---
 
-## Parte 2: Criando APIs com API Gateway
+## Parte 2: Criando APIs com API Gateway (HTTP API)
 
-O API Gateway é um serviço totalmente gerenciado que permite criar, publicar, manter, monitorar e proteger APIs em qualquer escala.
+O API Gateway é um serviço totalmente gerenciado que permite criar, publicar, manter, monitorar e proteger APIs em qualquer escala. Nesta versão, usaremos a **HTTP API**, que é mais barata, rápida e possui deploy automático.
 
-### Opção A: Usando a UI (HTTP API)
+## Opção A: Usando a UI (HTTP API)
 
-Integração de uma **HTTP API** com uma função **AWS Lambda**, incluindo configurações de segurança e monitoramento.
-
-#### Passo 1: Criar a Função Lambda (O Backend)
+### Passo 1: Criar a Função Lambda (O Backend)
 1. No console da AWS, acesse o **Lambda** e clique em **Create function**.
 2. Selecione **Author from scratch**.
-3. Em **Function name**, digite `minha-funcao-api`.
-4. Em **Runtime**, escolha `Python 3.11`.
-5. Deixe as permissões padrão (**Create a new role...**).
+3. Em *Function name*, digite `minha-funcao-api`.
+4. Em *Runtime*, escolha `Python 3.12` (ou 3.11).
+5. Em *Permissions*, selecione **Use an existing role** e escolha a `LabRole` (padrão do Academy).
 6. Clique em **Create function**.
-7. No bloco **Code source**, substitua o código pelo seguinte:
+7. No bloco *Code source*, substitua o código pelo seguinte (note a estrutura de resposta):
 ```python
+import json
+
 def lambda_handler(event, context):
     return {
         "statusCode": 200,
-        "body": "Olá do API Gateway + Lambda!"
+        "headers": {"Content-Type": "application/json"},
+        "body": json.dumps({"mensagem": "Olá do HTTP API + Lambda!"})
     }
 ```
 8. Clique em **Deploy**.
 
-#### Passo 2: Criar a HTTP API no API Gateway
+### Passo 2: Criar a HTTP API no API Gateway
 1. Na barra de busca, acesse o **API Gateway**.
 2. Clique em **Create API**.
 3. No cartão **HTTP API**, clique em **Build**.
-4. Em **API name**, digite `minha-http-api`.
-5. Em **Integrations**, clique em **Add integration** e selecione **Lambda**.
-6. No campo **Lambda function**, digite `minha-funcao-api` e selecione-a.
+4. Em *API name*, digite `minha-http-api`.
+5. Em *Integrations*, clique em **Add integration** e selecione **Lambda**.
+6. No campo *Lambda function*, digite `minha-funcao-api` e selecione-a.
 7. Clique em **Next**.
-8. Em **Configure routes**, deixe o **Method** como `GET` e o **Path** como `/`.
+8. Em *Configure routes*, deixe o Method como `GET` e o Path como `/`.
 9. Clique em **Next**.
-10. Em **Define stages**, digite `prod` no **Stage name** e mantenha o **Auto-deploy** marcado.
+10. Em *Define stages*, digite `$default` no Stage name (ou deixe o padrão) e mantenha o **Auto-deploy** marcado.
 11. Clique em **Next** e depois em **Create**.
 
-#### Passo 3: Configurar Autenticação (API Key)
-Para evitar que qualquer pessoa acesse sua API, vamos exigir uma chave de acesso.
-1. Na sua API (`minha-http-api`), clique em **API Keys** no menu lateral esquerdo e depois em **Create API key**.
-2. Dê o nome de `MinhaChaveDeAcesso` e clique em **Create**.
-3. Agora, vá em **Usage Plans** > **Create**.
-4. Dê o nome de `PlanoBasico`. Na seção **API Stages**, adicione a sua API (`minha-http-api`) e o estágio `prod`.
-5. Na seção **Associated API Keys**, adicione a `MinhaChaveDeAcesso` e clique em **Create**.
+### Passo 3: Configurar Autenticação (Lambda Authorizer)
+*Nota: O HTTP API não possui "API Keys". Para proteger a rota, usamos um Authorizer.*
 
-#### Passo 4: Configurar Throttling (Controle de Tráfego)
-Ainda dentro do `PlanoBasico` que você acabou de criar:
-1. Clique no plano `PlanoBasico` e vá até a aba **Throttling**.
-2. Clique em **Configure** e defina:
-   - **Rate Limit:** `5` (limite de 5 requisições por segundo).
-   - **Burst Limit:** `10` (picos temporários de até 10 requisições).
-3. **O que isso significa?** Se você fizer mais de 5 requisições no mesmo segundo, a API retornará o erro `429 Too Many Requests`, protegendo seu Lambda.
-
-#### Passo 5: Habilitar Observabilidade (Logs e Métricas)
-1. Na sua API (`minha-http-api`), clique em **Monitor** no menu lateral esquerdo.
-2. Clique em **Logging** e depois em **Manage logging**.
-3. Selecione a sua API e o estágio `prod`. Ative a opção **Detailed metrics**.
-4. Para habilitar os **Logs de Execução**:
-   - Vá em **Stages** > selecione o estágio `prod`.
-   - Na aba **Logs and tracing**, habilite o **CloudWatch Logs** (formato JSON).
-
-#### Passo 6: Testar a API Protegida
-1. Copie a **Invoke URL** gerada (ex: `https://abc123.execute-api.us-east-1.amazonaws.com/prod`).
-2. **Teste sem a chave:** Abra no navegador. Você receberá um erro `403 Forbidden`.
-3. **Teste com a chave:** No CloudShell, execute o comando (substitua a URL e a chave):
-```bash
-curl -H "x-api-key: SUA_CHAVE_AQUI" https://SUA-URL-DA-API
+1. No menu lateral esquerdo da sua API, clique em **Authorization** e depois em **Manage authorizers** > **Create**.
+2. Em *Authorizer type*, selecione **Lambda**.
+3. Em *Name*, digite `meu-autorizador`.
+4. Em *Lambda function*, selecione a opção **Create new Lambda function** (ou use uma existente). Se criar uma nova, dê o nome de `autorizador-api` e use o código abaixo:
+```python
+def lambda_handler(event, context):
+    # Pega o token do cabeçalho Authorization
+    token = (event.get("headers") or {}).get("authorization", "")
+    # Se o token for "segredo123", autoriza; caso contrário, nega.
+    if token == "segredo123":
+        return {"isAuthorized": True}
+    return {"isAuthorized": False}
 ```
-4. Você deverá ver a mensagem `"Olá do API Gateway + Lambda!"`.
-5. **Verifique os logs:** Vá no console do **CloudWatch** > **Log groups** e abra o log group `aws/apigateway/minha-http-api` para ver os detalhes da requisição bem-sucedida.
+5. Em *Identity source*, digite `$request.header.Authorization`.
+6. Clique em **Create**.
+7. Agora, vá em **Routes** > selecione a sua rota `GET /` > clique em **Edit** (ou **Attach authorization**).
+8. Em *Authorization*, selecione o `meu-autorizador` que você acabou de criar e clique em **Save**.
 
-#### 🧹 Limpeza (Evitar custos no Academy)
-Para apagar tudo o que foi criado:
-1. **API Gateway:** Vá em **Usage Plans** e exclua o `PlanoBasico`. Vá em **API Keys** e exclua a `MinhaChaveDeAcesso`.
-2. **API Gateway:** Selecione a API `minha-http-api`, clique em **Actions > Delete**.
-3. **Lambda:** No console do Lambda, exclua a função `minha-funcao-api`.
-4. **IAM:** A role criada automaticamente pelo Lambda pode ser excluída (busque pelo nome da função no IAM > Roles).
-5. **CloudWatch:** (Opcional) Exclua o Log Group `aws/apigateway/minha-http-api` para limpar os logs gerados.
+### Passo 4: Configurar Throttling (Controle de Tráfego)
+*No HTTP API, o throttling é configurado no Stage, e não em Usage Plans.*
+1. No menu lateral, clique em **Monitor** > **Throttling** (ou acesse **Stages** > `$default`).
+2. Clique em **Edit**.
+3. Defina:
+   - **Rate limit:** 5 (requisições por segundo).
+   - **Burst limit:** 10 (picos temporários).
+4. Clique em **Save**.
+*O que isso significa? Se a API receber mais de 5 requisições por segundo, retornará erro 429 (Too Many Requests), protegendo seu Lambda.*
+
+### Passo 5: Habilitar Observabilidade (Logs)
+1. No menu lateral, clique em **Monitor** > **Logging**.
+2. Clique em **Manage logging** e ative o **Access logging**.
+3. No destino, escolha **CloudWatch Logs** e crie um Log Group (ex: `/aws/apigateway/minha-http-api`).
+4. Em *Log format*, escolha **JSON** e clique em **Save**.
+
+### Passo 6: Testar a API Protegida
+1. Copie a **Invoke URL** gerada (ex: `https://abc123.execute-api.us-east-1.amazonaws.com`). *Note que não há `/prod` ou `/default` no final.*
+2. **Teste sem o token:** Abra no navegador ou rode `curl https://SUA-URL`. Você receberá um erro `401 Unauthorized` ou `403 Forbidden`.
+3. **Teste com o token:** No CloudShell, execute o comando:
+```bash
+curl -H "Authorization: segredo123" https://SUA-URL-DA-API
+```
+Você deverá ver o JSON: `{"mensagem": "Olá do HTTP API + Lambda!"}`.
+4. **Verifique os logs:** Vá no console do CloudWatch > Log groups e abra o log group que você criou no Passo 5 para ver os detalhes da requisição.
+
+### 🧹 Limpeza (Evitar custos no Academy)
+1. **API Gateway:** Selecione a API `minha-http-api`, clique em **Actions > Delete**.
+2. **Lambda:** No console do Lambda, exclua a função `minha-funcao-api` (e a `autorizador-api` se você criou).
+3. **CloudWatch:** Exclua o Log Group criado no Passo 5.
 
 ---
 
-### Opção B: Usando CloudFormation (REST API com Segurança)
+## Opção B: Usando CloudFormation (HTTP API com Segurança)
 
-Esta é a forma "completa" para produção. O template abaixo cria a Role, a Função Lambda, a REST API, o método GET, o deploy, **a API Key, o Plano de Uso com Throttling** e as permissões necessárias.
+No CloudShell, crie o arquivo `api-gateway-http.yaml`:
 
-1. No CloudShell, crie o arquivo `api-gateway.yaml`:
-```bash
-cat > api-gateway.yaml << 'EOF'
-# Cole o template YAML abaixo
-EOF
-```
-
-**Template YAML:**
 ```yaml
 AWSTemplateFormatVersion: '2010-09-09'
-Description: 'Lab: API REST integrada ao Lambda com API Key e Throttling'
+Description: 'Lab: HTTP API integrada ao Lambda com Lambda Authorizer'
+
+Parameters:
+  RoleName:
+    Type: String
+    Default: LabRole # Usando LabRole para facilitar no Academy
 
 Resources:
-  # 1. Role de execução para o Lambda
-  LambdaExecutionRole:
-    Type: AWS::IAM::Role
-    Properties:
-      AssumeRolePolicyDocument:
-        Version: '2012-10-17'
-        Statement:
-          - Effect: Allow
-            Principal:
-              Service: lambda.amazonaws.com
-            Action: sts:AssumeRole
-      ManagedPolicyArns:
-        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
-
-  # 2. A Função Lambda (Backend)
+  # 1. A Função Lambda (Backend)
   MinhaFuncaoHello:
     Type: AWS::Lambda::Function
     Properties:
-      Handler: index.handler
-      Runtime: python3.11
-      Role: !GetAtt LambdaExecutionRole.Arn
+      FunctionName: minha-funcao-api
+      Handler: index.lambda_handler
+      Runtime: python3.12
+      Role: !Sub 'arn:aws:iam::${AWS::AccountId}:role/${RoleName}'
       Code:
         ZipFile: |
-          def handler(event, context):
+          import json
+          def lambda_handler(event, context):
               return {
                   "statusCode": 200,
-                  "body": "Olá do API Gateway + Lambda (Protegido)!"
+                  "headers": {"Content-Type": "application/json"},
+                  "body": json.dumps({"mensagem": "Olá do HTTP API + Lambda!"})
               }
 
-  # 3. A API no API Gateway
-  MinhaApiRest:
-    Type: AWS::ApiGateway::RestApi
+  # 2. A Função Lambda (Authorizer)
+  FuncaoAutorizadora:
+    Type: AWS::Lambda::Function
     Properties:
-      Name: "MinhaPrimeiraAPI"
+      FunctionName: minha-funcao-autorizadora
+      Handler: index.lambda_handler
+      Runtime: python3.12
+      Role: !Sub 'arn:aws:iam::${AWS::AccountId}:role/${RoleName}'
+      Code:
+        ZipFile: |
+          def lambda_handler(event, context):
+              token = (event.get("headers") or {}).get("authorization", "")
+              return {"isAuthorized": token == "segredo123"}
 
-  # 4. O Recurso (/hello)
-  RecursoHello:
-    Type: AWS::ApiGateway::Resource
+  # 3. A HTTP API
+  MinhaHttpApi:
+    Type: AWS::ApiGatewayV2::Api
     Properties:
-      RestApiId: !Ref MinhaApiRest
-      ParentId: !GetAtt MinhaApiRest.RootResourceId
-      PathPart: "hello"
+      Name: "MinhaPrimeiraHTTPAPI"
+      ProtocolType: HTTP
 
-  # 5. O Método (GET) com Integração Proxy e exigindo API Key
-  MetodoGetHello:
-    Type: AWS::ApiGateway::Method
+  # 4. Integração do Backend
+  IntegracaoLambda:
+    Type: AWS::ApiGatewayV2::Integration
     Properties:
-      RestApiId: !Ref MinhaApiRest
-      ResourceId: !Ref RecursoHello
-      HttpMethod: "GET"
-      AuthorizationType: "NONE"
-      ApiKeyRequired: true # <--- Exige a API Key
-      Integration:
-        Type: "AWS_PROXY"
-        IntegrationHttpMethod: "POST"
-        Uri: !Sub 
-          - "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${LambdaArn}/invocations"
-          - LambdaArn: !GetAtt MinhaFuncaoHello.Arn
+      ApiId: !Ref MinhaHttpApi
+      IntegrationType: AWS_PROXY
+      IntegrationUri: !GetAtt MinhaFuncaoHello.Arn
+      PayloadFormatVersion: '2.0'
 
-  # 6. Permissão para o API Gateway invocar o Lambda
-  PermissaoApiInvocaLambda:
+  # 5. O Authorizer
+  MeuAuthorizer:
+    Type: AWS::ApiGatewayV2::Authorizer
+    Properties:
+      ApiId: !Ref MinhaHttpApi
+      Name: meu-autorizador-cfn
+      AuthorizerType: REQUEST
+      AuthorizerUri: !Sub 'arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${FuncaoAutorizadora.Arn}/invocations'
+      AuthorizerPayloadFormatVersion: '2.0'
+      EnableSimpleResponses: true
+      IdentitySource:
+        - '$request.header.Authorization'
+
+  # 6. A Rota Protegida (GET /)
+  RotaPrincipal:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref MinhaHttpApi
+      RouteKey: 'GET /'
+      Target: !Sub 'integrations/${IntegracaoLambda}'
+      AuthorizationType: CUSTOM
+      AuthorizerId: !Ref MeuAuthorizer
+
+  # 7. Stage $default com Auto-deploy e Throttling
+  StageDefault:
+    Type: AWS::ApiGatewayV2::Stage
+    Properties:
+      ApiId: !Ref MinhaHttpApi
+      StageName: '$default'
+      AutoDeploy: true
+      DefaultRouteSettings:
+        ThrottlingRateLimit: 5
+        ThrottlingBurstLimit: 10
+
+  # 8. Permissão para o API Gateway invocar o Backend
+  PermissaoApiGateway:
     Type: AWS::Lambda::Permission
     Properties:
-      FunctionName: !GetAtt MinhaFuncaoHello.Arn
-      Action: "lambda:InvokeFunction"
-      Principal: "apigateway.amazonaws.com"
-      SourceArn: !Sub "arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${MinhaApiRest}/*"
+      FunctionName: !Ref MinhaFuncaoHello
+      Action: lambda:InvokeFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub 'arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${MinhaHttpApi}/*/*'
 
-  # 7. Deploy da API
-  ApiDeployment:
-    Type: AWS::ApiGateway::Deployment
-    DependsOn: MetodoGetHello
+  # 9. Permissão para o API Gateway invocar o Authorizer
+  PermissaoAuthorizer:
+    Type: AWS::Lambda::Permission
     Properties:
-      RestApiId: !Ref MinhaApiRest
-      StageName: "prod"
+      FunctionName: !Ref FuncaoAutorizadora
+      Action: lambda:InvokeFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub 'arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${MinhaHttpApi}/authorizers/${MeuAuthorizer}'
 
-  # 8. Criação da API Key
-  MinhaApiKey:
-    Type: AWS::ApiGateway::ApiKey
-    DependsOn: ApiDeployment
-    Properties:
-      Name: "MinhaChaveDeAcessoCFN"
-      Enabled: true
-      StageKeys:
-        - RestApiId: !Ref MinhaApiRest
-          StageName: "prod"
-
-  # 9. Criação do Usage Plan com Throttling
-  MeuUsagePlan:
-    Type: AWS::ApiGateway::UsagePlan
-    DependsOn: ApiDeployment
-    Properties:
-      UsagePlanName: "PlanoBasicoCFN"
-      ApiStages:
-        - ApiId: !Ref MinhaApiRest
-          Stage: "prod"
-      Throttle:
-        BurstLimit: 10
-        RateLimit: 5
-
-  # 10. Associação da API Key ao Usage Plan
-  MinhaApiKeyUsagePlan:
-    Type: AWS::ApiGateway::UsagePlanKey
-    Properties:
-      KeyId: !Ref MinhaApiKey
-      KeyType: API_KEY
-      UsagePlanId: !Ref MeuUsagePlan
-EOF
+Outputs:
+  InvokeURL:
+    Description: URL base da HTTP API
+    Value: !Sub 'https://${MinhaHttpApi}.execute-api.${AWS::Region}.amazonaws.com'
 ```
 
-2. Crie a stack:
+Crie a stack:
 ```bash
 aws cloudformation create-stack \
   --stack-name ApiGatewayLab \
-  --template-body file://api-gateway.yaml \
+  --template-body file://api-gateway-http.yaml \
   --capabilities CAPABILITY_NAMED_IAM
 ```
-3. Acompanhe a criação:
+Acompanhe a criação:
 ```bash
 aws cloudformation wait stack-create-complete --stack-name ApiGatewayLab
 ```
-4. Obtenha a URL e o ID da API Key para testar:
+Obtenha a URL para testar:
 ```bash
-# Ver a URL da API
-aws apigateway get-stages --rest-api-id $(aws apigateway get-rest-apis --query "items[?name=='MinhaPrimeiraAPI'].id" --output text) --query "item[0].invokeUrl"
-
-# Ver o ID da API Key (para pegar o valor real, precisa usar get-api-key)
-aws apigateway get-api-keys --query "items[?name=='MinhaChaveDeAcessoCFN'].id" --output text
-```
-*(Dica: Para pegar o valor real da chave via CLI, use `aws apigateway get-api-key --api-key ID_DA_CHAVE --include-value`)*
-
-5. **Teste via CloudShell** (lembre-se de substituir a URL e o valor da chave):
-```bash
-curl -H "x-api-key: SUA_CHAVE_AQUI" https://SUA-URL-DA-API/hello
+aws cloudformation describe-stacks --stack-name ApiGatewayLab --query "Stacks[0].Outputs[0].OutputValue" --output text
 ```
 
-#### 🧹 Limpeza (Evitar custos no Academy)
-Para apagar TUDO (API, Lambda, Role, API Key, Usage Plan) de uma só vez, basta deletar a stack:
+Teste via CloudShell:
+```bash
+# Teste sem o token (deve dar 401 Unauthorized)
+curl -i https://SUA-URL-DA-API
+
+# Teste com o token (deve dar 200 OK)
+curl -H "Authorization: segredo123" https://SUA-URL-DA-API
+```
+
+### 🧹 Limpeza (Evitar custos no Academy)
+Para apagar TUDO (API, Lambdas, Logs) de uma só vez, basta deletar a stack:
+```bash
+aws cloudformation delete-stack --stack-name ApiGatewayLab
+aws cloudformation wait stack-delete-complete --stack-name ApiGatewayLab
+```ma só vez, basta deletar a stack:
 ```bash
 aws cloudformation delete-stack --stack-name ApiGatewayLab
 aws cloudformation wait stack-delete-complete --stack-name ApiGatewayLab
