@@ -302,13 +302,13 @@ curl --aws-sigv4 "aws:amz:us-east-1:execute-api" \
      --user "$AWS_ACCESS_KEY_ID:$AWS_SECRET_ACCESS_KEY" \
      -H "x-amz-security-token: $AWS_SESSION_TOKEN" \
      -i "https://SUA-URL-DA-API/status"
-Resultado esperado: HTTP/2 200 e o corpo JSON com a lista de instâncias do seu Lambda.
 ```
+
+Resultado esperado: HTTP/2 200 e o corpo JSON com a lista de instâncias do seu Lambda.
 
 ### 🧹 Limpeza (Evitar custos no Academy)
 1. **API Gateway:** Selecione a API `minha-http-api`, clique em **Actions > Delete**.
 2. **Lambda:** No console do Lambda, exclua a função `minha-funcao-api` (e a `autorizador-api` se você criou).
-3. **CloudWatch:** Exclua o Log Group criado no Passo 5.
 
 ---
 
