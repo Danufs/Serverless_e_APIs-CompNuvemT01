@@ -7,8 +7,6 @@ O objetivo é implementar a mesma solução de duas formas:
 1. **Provisionamento manual utilizando AWS CLI**
 2. **Provisionamento automatizado utilizando AWS CloudFormation**
 
-> **Objetivo:** Demonstrar uma arquitetura orientada a eventos em que um evento enviado ao EventBridge inicia automaticamente uma execução do Step Functions.
-
 > **Observação:** Este laboratório foi desenvolvido para ambientes educacionais como o AWS Academy. Algumas permissões e papéis IAM podem ser gerenciados automaticamente pelo ambiente e não fazem parte do escopo desta atividade.
 
 ---
