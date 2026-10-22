@@ -1,4 +1,4 @@
-# Guia Prático: AWS Lambda e API Gateway
+# Guia Prático: AWS Lambda
 
 Este guia documenta o passo a passo para provisionar, configurar e integrar aplicações serverless usando o AWS Lambda e o Amazon API Gateway. Serão demonstradas a criação de funções, a configuração de rotas HTTP e a conexão entre os serviços para expor sua aplicação.
 
